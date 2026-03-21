@@ -17,10 +17,11 @@ public class PacketAx25UnitTests
     {
         var sender = "N0CALL";
         var destination = "N0NE";
-        var path = new string[2] { "WIDE2-2", "WIDE1-1" };
+        var viaPath = new string[2] { "WIDE2-2", "WIDE1-1" };
+        var fullPath = new string[3] { destination, viaPath[0], viaPath[1] };
         var info = new StatusInfo(new Timestamp(DateTime.UtcNow), "Testing 1 2 3!");
 
-        var packet = new Packet(sender, destination, path, info);
+        var packet = new Packet(sender, destination, fullPath, info);
 
         var encoded = packet.EncodeAx25();
 
@@ -28,7 +29,10 @@ public class PacketAx25UnitTests
 
         Assert.Equal(sender, decodedPacket.Sender);
         Assert.Equal(destination, decodedPacket.Destination);
-        Assert.Equal(path, decodedPacket.Path);
+        Assert.Equal(3, decodedPacket.Path.Count);
+        Assert.Equal(destination, decodedPacket.Path[0]);
+        Assert.Equal(viaPath[0], decodedPacket.Path[1]);
+        Assert.Equal(viaPath[1], decodedPacket.Path[2]);
 
         var si = Assert.IsType<StatusInfo>(decodedPacket.InfoField);
         Assert.NotNull(si.Timestamp);

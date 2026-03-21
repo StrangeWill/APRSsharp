@@ -2,6 +2,7 @@ namespace AprsSharpUnitTests.AprsParser
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using AprsSharp.AprsParser;
     using AprsSharp.AprsParser.Extensions;
     using GeoCoordinatePortable;

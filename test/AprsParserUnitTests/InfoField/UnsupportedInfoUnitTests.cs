@@ -26,10 +26,7 @@ public class UnsupportedInfoUnitTests
         Assert.Equal("WIDE2-2", p.Path.Single());
         Assert.True((p.ReceivedTime - DateTime.UtcNow) < TimeSpan.FromMinutes(1));
         Assert.Equal(PacketType.Item, p.InfoField.Type);
-        Assert.IsType<UnsupportedInfo>(p.InfoField);
-
-        var ui = p.InfoField as UnsupportedInfo;
-        Assert.Equal(")AID #2!4903.50N/07201.75WA", ui!.Content);
+        Assert.IsType<ItemInfo>(p.InfoField);
     }
 
     /// <summary>
