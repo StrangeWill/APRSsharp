@@ -12,6 +12,12 @@ using Xunit;
 public class PacketAx25UnitTests
 {
     /// <summary>
+    /// A reusable outer AX.25 path (destination + one via) for third-party decode tests.
+    /// Hoisted to a static field to satisfy CA1861 (avoid constant array arguments).
+    /// </summary>
+    private static readonly string[] OuterPath = { "APDW17", "WIDE1-1" };
+
+    /// <summary>
     /// Tests a full roundtrip encode then decode in AX.25.
     /// </summary>
     [Fact]
@@ -59,7 +65,7 @@ public class PacketAx25UnitTests
     {
         // The info field carries the '>' that triggered the bug.
         var info = "}KE4QCM-4>APJYC1,TCPIP,K4TUX-10*:=3346.02N/08406.98W-KE4QCM-7 packet 145.59 BBS/Chat/DX";
-        var ax25Bytes = BuildAx25Frame("K4TUX-10", "APDW17", new[] { "APDW17", "WIDE1-1" }, info);
+        var ax25Bytes = BuildAx25Frame("K4TUX-10", "APDW17", OuterPath, info);
 
         var decoded = new Packet(ax25Bytes);
 
@@ -83,7 +89,7 @@ public class PacketAx25UnitTests
         var tnc2 = $"K4TUX-10>APDW17,WIDE1-1:{info}";
 
         var fromString = new Packet(tnc2);
-        var fromBytes = new Packet(BuildAx25Frame("K4TUX-10", "APDW17", new[] { "APDW17", "WIDE1-1" }, info));
+        var fromBytes = new Packet(BuildAx25Frame("K4TUX-10", "APDW17", OuterPath, info));
 
         Assert.Equal(fromString.Sender, fromBytes.Sender);
         Assert.Equal(fromString.Destination, fromBytes.Destination);
@@ -101,7 +107,7 @@ public class PacketAx25UnitTests
     public void DecodeThirdPartyMessageFromAx25Bytes()
     {
         var info = "}EMAIL-2>APJIE4,TCPIP,KG4FZR-3*::KM4ACK   :No email address found!{1099";
-        var ax25Bytes = BuildAx25Frame("KG4FZR-3", "APDW17", new[] { "APDW17", "WIDE1-1" }, info);
+        var ax25Bytes = BuildAx25Frame("KG4FZR-3", "APDW17", OuterPath, info);
 
         var decoded = new Packet(ax25Bytes);
 
