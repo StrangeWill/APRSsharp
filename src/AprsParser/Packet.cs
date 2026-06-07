@@ -26,16 +26,25 @@
 
             ReceivedTime = DateTime.UtcNow;
 
-            // Attempt to decode TNC2 format
-            Match match = Regex.Match(Encoding.ASCII.GetString(encodedPacket), RegexStrings.Tnc2Packet);
-            if (match.Success)
+            // Attempt to decode TNC2 format.
+            // Only run the TNC2 text regex on plausibly-textual input. A raw AX.25 frame
+            // is not text: its address fields are each callsign char left-shifted by one bit
+            // (so letters become bytes >= 0x80) and it carries control/PID bytes (0x03, 0xF0).
+            // Without this guard, an AX.25 frame whose info field contains a '>' (e.g. every
+            // third-party packet, "}SRC>PATH:...") false-matches the TNC2 regex and Sender is
+            // decoded as binary address garbage instead of the real callsign.
+            if (LooksLikeText(encodedPacket))
             {
-                match.AssertSuccess("Full TNC2 Packet", nameof(encodedPacket));
-                Sender = match.Groups[1].Value;
-                Path = match.Groups[2].Value.Split(',').ToList();
-                Destination = Path.Count > 0 ? Path[0] : null;
-                InfoField = InfoField.FromString(match.Groups[3].Value, Destination);
-                return;
+                Match match = Regex.Match(Encoding.ASCII.GetString(encodedPacket), RegexStrings.Tnc2Packet);
+                if (match.Success)
+                {
+                    match.AssertSuccess("Full TNC2 Packet", nameof(encodedPacket));
+                    Sender = match.Groups[1].Value;
+                    Path = match.Groups[2].Value.Split(',').ToList();
+                    Destination = Path.Count > 0 ? Path[0] : null;
+                    InfoField = InfoField.FromString(match.Groups[3].Value, Destination);
+                    return;
+                }
             }
 
             // Next attempt to decode AX.25 format
@@ -195,6 +204,24 @@
             Encoding.ASCII.GetBytes(encodedInfoField).CopyTo(encodedBytes, offset);
 
             return encodedBytes;
+        }
+
+        /// <summary>
+        /// Determines whether a buffer is plausibly a textual (TNC2) packet rather than a
+        /// raw AX.25 byte frame. Returns true only if every byte is printable ASCII or a
+        /// common whitespace control (tab, carriage return, line feed). A raw AX.25 frame
+        /// always contains bytes outside this range (shifted address bytes and/or the
+        /// 0x03/0xF0 control and PID bytes), so it is correctly rejected here.
+        /// </summary>
+        /// <param name="encodedPacket">The bytes of the encoded packet.</param>
+        /// <returns>True if the buffer looks like printable text, otherwise false.</returns>
+        private static bool LooksLikeText(byte[] encodedPacket)
+        {
+            return encodedPacket.All(b =>
+                b == (byte)'\t' ||
+                b == (byte)'\r' ||
+                b == (byte)'\n' ||
+                (b >= 0x20 && b < 0x7F));
         }
 
         /// <summary>
