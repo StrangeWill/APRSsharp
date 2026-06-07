@@ -62,6 +62,29 @@ namespace AprsSharp.AprsParser
         /// </summary>
         public Position Position { get; }
 
+        /// <summary>
+        /// Attempts to parse an encoded info field as a <see cref="MaidenheadBeaconInfo"/>.
+        /// Returns null if the string cannot be parsed.
+        /// </summary>
+        /// <param name="encodedInfoField">A string encoding of a <see cref="MaidenheadBeaconInfo"/>.</param>
+        /// <returns>A <see cref="MaidenheadBeaconInfo"/> if parsing succeeds; otherwise, null.</returns>
+        public static MaidenheadBeaconInfo? TryParse(string encodedInfoField)
+        {
+            if (string.IsNullOrWhiteSpace(encodedInfoField))
+            {
+                return null;
+            }
+
+            try
+            {
+                return new MaidenheadBeaconInfo(encodedInfoField);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+        }
+
         /// <inheritdoc/>
         public override string Encode()
         {

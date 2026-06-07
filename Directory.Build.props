@@ -5,14 +5,14 @@
     <NullableReferenceTypes>true</NullableReferenceTypes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <CodeAnalysisRuleSet>$(MSBuildThisFileDirectory)\analyzers.ruleset</CodeAnalysisRuleSet>
-    <Version>0.4.1</Version>
-    <Authors>Cameron Bielstein</Authors>
-    <Company>Cameron Bielstein</Company>
-    <PackageProjectUrl>https://github.com/CBielstein/APRSsharp</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/CBielstein/APRSsharp</RepositoryUrl>
+    <Version>0.5.1-rc.2</Version>
+    <Authors>Cameron Bielstein, William Roush</Authors>
+    <Company>RoushTech</Company>
+    <PackageProjectUrl>https://github.com/StrangeWill/APRSsharp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/StrangeWill/APRSsharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>Copyright (c) Cameron Bielstein 2020</Copyright>
+    <Copyright>Copyright (c) Cameron Bielstein 2020, RoushTech 2026</Copyright>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisMode>All</AnalysisMode>

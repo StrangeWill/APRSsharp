@@ -179,6 +179,29 @@ namespace AprsSharp.AprsParser
         }
 
         /// <summary>
+        /// Attempts to parse a <see cref="PositionInfo"/> as a <see cref="WeatherInfo"/>.
+        /// Returns null if the position does not have a weather symbol or parsing fails.
+        /// </summary>
+        /// <param name="positionInfo">A <see cref="PositionInfo"/> to convert.</param>
+        /// <returns>A <see cref="WeatherInfo"/> if parsing succeeds; otherwise, null.</returns>
+        public static WeatherInfo? TryParse(PositionInfo positionInfo)
+        {
+            if (positionInfo == null || !positionInfo.Position.IsWeatherSymbol())
+            {
+                return null;
+            }
+
+            try
+            {
+                return new WeatherInfo(positionInfo);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Retrieves an APRS weather measurement from the comment string.
         /// </summary>
         /// <param name="measurementKey">The weather element to fetch, as defined by the key the ARPS specification.</param>

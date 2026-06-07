@@ -31,13 +31,28 @@ namespace AprsSharp.AprsParser
                 HasMessaging = Type == PacketType.PositionWithoutTimestampWithMessaging;
 
                 Match match = Regex.Match(encodedInfoField, RegexStrings.PositionWithoutTimestamp);
-                match.AssertSuccess(PacketType.PositionWithoutTimestampNoMessaging, nameof(encodedInfoField));
 
-                Position = new Position(match.Groups[1].Value);
-
-                if (match.Groups[6].Success)
+                if (match.Success)
                 {
-                    Comment = match.Groups[6].Value;
+                    Position = new Position(match.Groups[1].Value);
+
+                    if (match.Groups[6].Success)
+                    {
+                        Comment = match.Groups[6].Value;
+                    }
+                }
+                else
+                {
+                    // Try compressed format
+                    match = Regex.Match(encodedInfoField, RegexStrings.PositionWithoutTimestampCompressed);
+                    match.AssertSuccess(PacketType.PositionWithoutTimestampNoMessaging, nameof(encodedInfoField));
+
+                    Position = new Position(match.Groups[1].Value);
+
+                    if (match.Groups[8].Success)
+                    {
+                        Comment = match.Groups[8].Value;
+                    }
                 }
             }
             else if (Type == PacketType.PositionWithTimestampNoMessaging || Type == PacketType.PositionWithTimestampWithMessaging)
@@ -45,19 +60,36 @@ namespace AprsSharp.AprsParser
                 HasMessaging = Type == PacketType.PositionWithTimestampWithMessaging;
 
                 Match match = Regex.Match(encodedInfoField, RegexStrings.PositionWithTimestamp);
-                match.AssertSuccess(
-                    HasMessaging ?
-                        PacketType.PositionWithTimestampWithMessaging :
-                        PacketType.PositionWithTimestampNoMessaging,
-                    nameof(encodedInfoField));
 
-                Timestamp = new Timestamp(match.Groups[2].Value);
-
-                Position = new Position(match.Groups[3].Value);
-
-                if (match.Groups[8].Success)
+                if (match.Success)
                 {
-                    Comment = match.Groups[8].Value;
+                    Timestamp = new Timestamp(match.Groups[2].Value);
+
+                    Position = new Position(match.Groups[3].Value);
+
+                    if (match.Groups[8].Success)
+                    {
+                        Comment = match.Groups[8].Value;
+                    }
+                }
+                else
+                {
+                    // Try compressed format
+                    match = Regex.Match(encodedInfoField, RegexStrings.PositionWithTimestampCompressed);
+                    match.AssertSuccess(
+                        HasMessaging ?
+                            PacketType.PositionWithTimestampWithMessaging :
+                            PacketType.PositionWithTimestampNoMessaging,
+                        nameof(encodedInfoField));
+
+                    Timestamp = new Timestamp(match.Groups[2].Value);
+
+                    Position = new Position(match.Groups[3].Value);
+
+                    if (match.Groups[10].Success)
+                    {
+                        Comment = match.Groups[10].Value;
+                    }
                 }
             }
             else
@@ -130,6 +162,29 @@ namespace AprsSharp.AprsParser
         /// Gets the position from which the message was sent.
         /// </summary>
         public Position Position { get; }
+
+        /// <summary>
+        /// Attempts to parse an encoded info field as a <see cref="PositionInfo"/>.
+        /// Returns null if the string cannot be parsed.
+        /// </summary>
+        /// <param name="encodedInfoField">A string encoding of a <see cref="PositionInfo"/>.</param>
+        /// <returns>A <see cref="PositionInfo"/> if parsing succeeds; otherwise, null.</returns>
+        public static PositionInfo? TryParse(string encodedInfoField)
+        {
+            if (string.IsNullOrWhiteSpace(encodedInfoField))
+            {
+                return null;
+            }
+
+            try
+            {
+                return new PositionInfo(encodedInfoField);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+        }
 
         /// <inheritdoc/>
         public override string Encode() => Encode(TimestampType.DHMz);

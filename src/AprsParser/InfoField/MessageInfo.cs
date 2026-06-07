@@ -33,10 +33,14 @@ namespace AprsSharp.AprsParser
             }
 
             Match match = Regex.Match(encodedInfoField, RegexStrings.MessageWithId);
+            if (!match.Success)
+            {
+                // Try lenient regex - allows any addressee chars, content with colons/tildes
+                match = Regex.Match(encodedInfoField, RegexStrings.MessageLenient);
+            }
+
             if (match.Success)
             {
-                match.AssertSuccess(PacketType.Message, nameof(encodedInfoField));
-
                 Addressee = match.Groups[1].Value.TrimEnd();
 
                 if (match.Groups[2].Success)
@@ -51,7 +55,30 @@ namespace AprsSharp.AprsParser
             }
             else
             {
-                throw new ArgumentException("Did not match RegexStrings.Message");
+                // Last resort: no second colon found. Extract what we can.
+                // Format: ":XXXXXXXXX..." with no second colon
+                if (encodedInfoField.Length > 1)
+                {
+                    var afterFirstColon = encodedInfoField.Substring(1);
+                    var secondColon = afterFirstColon.IndexOf(':');
+                    if (secondColon >= 0 && secondColon <= 9)
+                    {
+                        Addressee = afterFirstColon.Substring(0, secondColon).TrimEnd();
+                        Content = afterFirstColon.Substring(secondColon + 1);
+                    }
+                    else
+                    {
+                        // Truly unparseable as a message - take first 9 chars as addressee
+                        Addressee = afterFirstColon.Length > 9
+                            ? afterFirstColon.Substring(0, 9).TrimEnd()
+                            : afterFirstColon.TrimEnd();
+                        Content = afterFirstColon.Length > 9 ? afterFirstColon.Substring(9) : null;
+                    }
+                }
+                else
+                {
+                    throw new ArgumentException("Did not match RegexStrings.Message");
+                }
             }
         }
 
@@ -117,6 +144,29 @@ namespace AprsSharp.AprsParser
         /// between a sender and a receiver.
         /// </summary>
         public string? Id { get; }
+
+        /// <summary>
+        /// Attempts to parse an encoded info field as a <see cref="MessageInfo"/>.
+        /// Returns null if the string cannot be parsed.
+        /// </summary>
+        /// <param name="encodedInfoField">A string encoding of a <see cref="MessageInfo"/>.</param>
+        /// <returns>A <see cref="MessageInfo"/> if parsing succeeds; otherwise, null.</returns>
+        public static MessageInfo? TryParse(string encodedInfoField)
+        {
+            if (string.IsNullOrWhiteSpace(encodedInfoField) || encodedInfoField.Length < 2)
+            {
+                return null;
+            }
+
+            try
+            {
+                return new MessageInfo(encodedInfoField);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+        }
 
         /// <inheritdoc/>
         public override string Encode()

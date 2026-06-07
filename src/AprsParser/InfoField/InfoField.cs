@@ -64,8 +64,21 @@
         /// </summary>
         /// <param name="encodedInfoField">String representation of the APRS info field.</param>
         /// <returns>A class extending <see cref="InfoField"/>.</returns>
-        public static InfoField FromString(string encodedInfoField)
+        public static InfoField FromString(string encodedInfoField) => FromString(encodedInfoField, null);
+
+        /// <summary>
+        /// Instantiates a type of <see cref="InfoField"/> from the given string.
+        /// </summary>
+        /// <param name="encodedInfoField">String representation of the APRS info field.</param>
+        /// <param name="destination">The destination address (TOCALL), required for Mic-E decoding.</param>
+        /// <returns>A class extending <see cref="InfoField"/>.</returns>
+        public static InfoField FromString(string encodedInfoField, string? destination)
         {
+            if (string.IsNullOrEmpty(encodedInfoField))
+            {
+                return new UnsupportedInfo(encodedInfoField ?? string.Empty);
+            }
+
             PacketType type = GetPacketType(encodedInfoField);
 
             switch (type)
@@ -74,17 +87,79 @@
                 case PacketType.PositionWithoutTimestampWithMessaging:
                 case PacketType.PositionWithTimestampNoMessaging:
                 case PacketType.PositionWithTimestampWithMessaging:
-                    PositionInfo positionInfo = new PositionInfo(encodedInfoField);
-                    return positionInfo.Position.IsWeatherSymbol() ? new WeatherInfo(positionInfo) : positionInfo;
+                {
+                    var positionInfo = PositionInfo.TryParse(encodedInfoField);
+                    if (positionInfo == null)
+                    {
+                        return new UnsupportedInfo(encodedInfoField);
+                    }
+
+                    if (positionInfo.Position.IsWeatherSymbol())
+                    {
+                        return WeatherInfo.TryParse(positionInfo) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+                    }
+
+                    return positionInfo;
+                }
 
                 case PacketType.Status:
-                    return new StatusInfo(encodedInfoField);
+                    return StatusInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
 
                 case PacketType.MaidenheadGridLocatorBeacon:
-                    return new MaidenheadBeaconInfo(encodedInfoField);
+                    return MaidenheadBeaconInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
 
                 case PacketType.Message:
-                    return new MessageInfo(encodedInfoField);
+                    return MessageInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+
+                case PacketType.Object:
+                    return ObjectInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+
+                case PacketType.Item:
+                    return ItemInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+
+                case PacketType.StationCapabilities:
+                    return StationCapabilitiesInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+
+                case PacketType.ThirdPartyTraffic:
+                    return ThirdPartyTrafficInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+
+                case PacketType.DoNotUse:
+                {
+                    // Some misconfigured stations embed valid APRS data after a colon
+                    var colonIdx = encodedInfoField.IndexOf(':');
+                    if (colonIdx >= 0 && colonIdx + 1 < encodedInfoField.Length)
+                    {
+                        var innerField = encodedInfoField.Substring(colonIdx + 1);
+                        if (innerField.Length > 0)
+                        {
+                            var innerType = innerField[0].ToPacketType();
+                            if (innerType != PacketType.Unknown && innerType != PacketType.DoNotUse)
+                            {
+                                return FromString(innerField, destination);
+                            }
+                        }
+                    }
+
+                    return new UnsupportedInfo(encodedInfoField);
+                }
+
+                case PacketType.TelemetryData:
+                    return TelemetryInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+
+                case PacketType.WeatherReport:
+                case PacketType.PeetBrosUIIWeatherStation:
+                    return PositionlessWeatherInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
+
+                case PacketType.CurrentMicEData:
+                case PacketType.OldMicEData:
+                case PacketType.CurrentMicEDataNotTMD700:
+                case PacketType.OldMicEDataCurrentTMD700:
+                    if (string.IsNullOrEmpty(destination))
+                    {
+                        return new UnsupportedInfo(encodedInfoField);
+                    }
+
+                    return MicEInfo.TryParse(encodedInfoField, destination) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
 
                 default:
                     return new UnsupportedInfo(encodedInfoField);
@@ -104,9 +179,9 @@
         /// <returns><see cref="PacketType"/> of the info field.</returns>
         private static PacketType GetPacketType(string encodedInfoField)
         {
-            if (encodedInfoField == null)
+            if (string.IsNullOrEmpty(encodedInfoField))
             {
-                throw new ArgumentNullException(nameof(encodedInfoField));
+                return PacketType.Unknown;
             }
 
             // TODO Issue #67: This isn't always true.

@@ -24,6 +24,10 @@ visualizing APRS digital packets in a straight-forward manner.
 This project is provided as [open source](LICENSE) and developed by the
 community for the community.
 
+APRS# was originally created by [Cameron Bielstein](https://github.com/CBielstein/APRSsharp).
+This fork is maintained by RoushTech, with our thanks to Cameron and the original
+contributors for their foundational work.
+
 ### Further Documentation
 
 See supplemental documentation for APRS# constituent projects:

@@ -158,6 +158,28 @@
         }
 
         /// <summary>
+        /// Attempts to decode an APRS position string. Returns null if the string cannot be parsed.
+        /// </summary>
+        /// <param name="coords">String representing LAT/LONG coordinates.</param>
+        /// <returns>A <see cref="Position"/> if decoding succeeds; otherwise, null.</returns>
+        public static Position? TryDecode(string coords)
+        {
+            if (string.IsNullOrEmpty(coords))
+            {
+                return null;
+            }
+
+            try
+            {
+                return new Position(coords);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Takes an encoded APRS coordinate string and uses it to initialize to <see cref="GeoCoordinate"/>.
         /// </summary>
         /// <param name="coords">A string of APRS encoded coordinates.</param>

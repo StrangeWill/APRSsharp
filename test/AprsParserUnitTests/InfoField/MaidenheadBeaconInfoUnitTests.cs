@@ -22,8 +22,8 @@
 
             Assert.Equal("N0CALL", p.Sender);
             Assert.Equal(2, p.Path.Count);
-            Assert.Equal("WIDE1-1", p.Path.First());
-            Assert.Equal("WIDE2-2", p.Path.Last());
+            Assert.Equal("WIDE1-1", p.Path[0]);
+            Assert.Equal("WIDE2-2", p.Path[1]);
             Assert.True((p.ReceivedTime - DateTime.UtcNow) < TimeSpan.FromMinutes(1));
             Assert.Equal(PacketType.MaidenheadGridLocatorBeacon, p.InfoField.Type);
 
