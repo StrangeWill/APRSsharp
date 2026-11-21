@@ -10,8 +10,9 @@ jobs:
     name: release
     timeout-minutes: 5
     runs-on: ubuntu-latest
-    env:
-      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    permissions:
+      contents: read
+      id-token: write # required for NuGet trusted publishing (OIDC)
 
     steps:
       - name: Clone
@@ -45,14 +46,20 @@ jobs:
       - name: Pack RoushTech.APRSsharp.Shared
         run: dotnet pack src/Shared/Shared.csproj --configuration Release --no-build
 
+      - name: NuGet login (OIDC)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish RoushTech.APRSsharp.AprsParser
-        run: dotnet nuget push src/AprsParser/bin/Release/RoushTech.APRSsharp.AprsParser.*.nupkg --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push src/AprsParser/bin/Release/RoushTech.APRSsharp.AprsParser.*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
 
       - name: Publish RoushTech.APRSsharp.AprsIsClient
-        run: dotnet nuget push src/AprsIsClient/bin/Release/RoushTech.APRSsharp.AprsIsClient.*.nupkg --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push src/AprsIsClient/bin/Release/RoushTech.APRSsharp.AprsIsClient.*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
 
       - name: Publish RoushTech.APRSsharp.KissTnc
-        run: dotnet nuget push src/KissTnc/bin/Release/RoushTech.APRSsharp.KissTnc.*.nupkg --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push src/KissTnc/bin/Release/RoushTech.APRSsharp.KissTnc.*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
 
       - name: Publish RoushTech.APRSsharp.Shared
-        run: dotnet nuget push src/Shared/bin/Release/RoushTech.APRSsharp.Shared.*.nupkg --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push src/Shared/bin/Release/RoushTech.APRSsharp.Shared.*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
