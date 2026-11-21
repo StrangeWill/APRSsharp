@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using System.Collections.Generic;
@@ -68,6 +68,10 @@ namespace AprsSharp.AprsParser
                 return new StationCapabilitiesInfo(encodedInfoField);
             }
             catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (FormatException)
             {
                 return null;
             }

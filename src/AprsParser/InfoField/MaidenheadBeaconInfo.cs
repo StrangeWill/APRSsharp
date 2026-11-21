@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using System.Text;
@@ -80,6 +80,10 @@ namespace AprsSharp.AprsParser
                 return new MaidenheadBeaconInfo(encodedInfoField);
             }
             catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (FormatException)
             {
                 return null;
             }

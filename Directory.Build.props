@@ -5,7 +5,7 @@
     <NullableReferenceTypes>true</NullableReferenceTypes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <CodeAnalysisRuleSet>$(MSBuildThisFileDirectory)\analyzers.ruleset</CodeAnalysisRuleSet>
-    <Version>0.5.1-rc.2</Version>
+    <Version>0.5.1-rc.3</Version>
     <Authors>Cameron Bielstein, William Roush</Authors>
     <Company>RoushTech</Company>
     <PackageProjectUrl>https://github.com/StrangeWill/APRSsharp</PackageProjectUrl>

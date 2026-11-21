@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
 
@@ -63,6 +63,10 @@ namespace AprsSharp.AprsParser
                 return new ThirdPartyTrafficInfo(encodedInfoField);
             }
             catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (FormatException)
             {
                 return null;
             }

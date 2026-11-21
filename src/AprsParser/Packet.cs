@@ -27,15 +27,17 @@
             ReceivedTime = DateTime.UtcNow;
 
             // Attempt to decode TNC2 format.
-            // Only run the TNC2 text regex on plausibly-textual input. A raw AX.25 frame
+            // Only run the TNC2 text regex when the header looks textual. A raw AX.25 frame
             // is not text: its address fields are each callsign char left-shifted by one bit
             // (so letters become bytes >= 0x80) and it carries control/PID bytes (0x03, 0xF0).
             // Without this guard, an AX.25 frame whose info field contains a '>' (e.g. every
             // third-party packet, "}SRC>PATH:...") false-matches the TNC2 regex and Sender is
             // decoded as binary address garbage instead of the real callsign.
-            if (LooksLikeText(encodedPacket))
+            // Only the header is checked: the info field of a valid TNC2 packet legitimately
+            // carries non-printable bytes (Mic-E uses 0x1C-0x1F and 0x7F for position/speed).
+            if (HasTextualTnc2Header(encodedPacket))
             {
-                Match match = Regex.Match(Encoding.ASCII.GetString(encodedPacket), RegexStrings.Tnc2Packet);
+                Match match = Regex.Match(Encoding.ASCII.GetString(encodedPacket), RegexStrings.Tnc2Packet, RegexOptions.Singleline);
                 if (match.Success)
                 {
                     match.AssertSuccess("Full TNC2 Packet", nameof(encodedPacket));
@@ -208,20 +210,36 @@
 
         /// <summary>
         /// Determines whether a buffer is plausibly a textual (TNC2) packet rather than a
-        /// raw AX.25 byte frame. Returns true only if every byte is printable ASCII or a
-        /// common whitespace control (tab, carriage return, line feed). A raw AX.25 frame
-        /// always contains bytes outside this range (shifted address bytes and/or the
-        /// 0x03/0xF0 control and PID bytes), so it is correctly rejected here.
+        /// raw AX.25 byte frame, by inspecting only the header (everything before the first
+        /// ':'). A TNC2 header is printable, space-free ASCII containing a '>' separator.
+        /// A raw AX.25 frame's address fields are shifted bytes (letters become >= 0x80) and
+        /// are followed by the 0x03/0xF0 control and PID bytes, so it is rejected here.
+        /// The info field is deliberately not inspected, as formats such as Mic-E use
+        /// non-printable bytes as part of their encoding.
         /// </summary>
         /// <param name="encodedPacket">The bytes of the encoded packet.</param>
-        /// <returns>True if the buffer looks like printable text, otherwise false.</returns>
-        private static bool LooksLikeText(byte[] encodedPacket)
+        /// <returns>True if the header looks like TNC2 text, otherwise false.</returns>
+        private static bool HasTextualTnc2Header(byte[] encodedPacket)
         {
-            return encodedPacket.All(b =>
-                b == (byte)'\t' ||
-                b == (byte)'\r' ||
-                b == (byte)'\n' ||
-                (b >= 0x20 && b < 0x7F));
+            int colonIndex = Array.IndexOf(encodedPacket, (byte)':');
+            if (colonIndex <= 0)
+            {
+                return false;
+            }
+
+            bool sawSeparator = false;
+            for (int i = 0; i < colonIndex; ++i)
+            {
+                byte b = encodedPacket[i];
+                if (b <= 0x20 || b >= 0x7F)
+                {
+                    return false;
+                }
+
+                sawSeparator |= b == (byte)'>';
+            }
+
+            return sawSeparator;
         }
 
         /// <summary>
@@ -234,6 +252,14 @@
         private static string GetCallsignFromAx25(IEnumerable<byte> encodedPacket, int callsignNumber, out bool isFinal)
         {
             int callsignStart = callsignNumber * 7;
+
+            // Each AX.25 address is 7 bytes; a frame too short to hold this one is malformed.
+            if (encodedPacket.Count() < callsignStart + 7)
+            {
+                throw new ArgumentException(
+                    $"Encoded packet is too short to be a TNC2 or AX.25 packet (no address {callsignNumber}).",
+                    nameof(encodedPacket));
+            }
 
             var raw = encodedPacket.Skip(callsignStart).Take(6);
             var shifted = raw.Select(r => (byte)(r >> 1)).ToArray();

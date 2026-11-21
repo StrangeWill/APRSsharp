@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using System.Globalization;
@@ -10,6 +10,8 @@ namespace AprsSharp.AprsParser
     /// </summary>
     public class PositionlessWeatherInfo : InfoField
     {
+        private const string UltimeterPrefix = "$ULTW";
+
         /// <summary>
         /// Initializes a new instance of the <see cref="PositionlessWeatherInfo"/> class from an encoded info field.
         /// </summary>
@@ -17,6 +19,33 @@ namespace AprsSharp.AprsParser
         public PositionlessWeatherInfo(string encodedInfoField)
             : base(encodedInfoField)
         {
+            if (IsUltimeterDataLogger(encodedInfoField))
+            {
+                // Peet Bros Ultimeter "$ULTW" data logger format (APRS 1.01 spec chapter 12):
+                // a run of 4-hex-digit fields, "----" meaning not available.
+                //   [0]  peak wind speed over last 5 min (0.1 kph)
+                //   [1]  direction of peak wind (0-255)
+                //   [2]  outdoor temperature (0.1 degF, signed)
+                //   [3]  long-term rain total (0.01 in)
+                //   [4]  barometer (0.1 mbar)
+                //   [5..7] barometer delta / correction factor
+                //   [8]  outdoor humidity (0.1 %)
+                //   [9]  day of year, [10] minute of day
+                //   [11] today's rain total (0.01 in)
+                //   [12] 5-minute average wind speed (0.1 kph)
+                var fields = encodedInfoField.Substring(UltimeterPrefix.Length).TrimEnd('\r', '\n');
+                const double kphTenthsToMph = 0.1 * 0.621371;
+
+                WindGust = Scale(UltimeterField(fields, 0), kphTenthsToMph);
+                WindDirection = Scale(UltimeterField(fields, 1), 360.0 / 256.0);
+                Temperature = Scale(UltimeterField(fields, 2, signed: true), 0.1);
+                BarometricPressure = UltimeterField(fields, 4);
+                Humidity = Scale(UltimeterField(fields, 8), 0.1);
+                RainfallSinceMidnight = UltimeterField(fields, 11);
+                WindSpeed = Scale(UltimeterField(fields, 12), kphTenthsToMph);
+                return;
+            }
+
             if (string.IsNullOrEmpty(encodedInfoField) || encodedInfoField[0] != '_')
             {
                 throw new ArgumentException("Invalid positionless weather info field", nameof(encodedInfoField));
@@ -122,7 +151,7 @@ namespace AprsSharp.AprsParser
         /// <returns>A <see cref="PositionlessWeatherInfo"/> if parsing succeeds; otherwise, null.</returns>
         public static PositionlessWeatherInfo? TryParse(string encodedInfoField)
         {
-            if (string.IsNullOrEmpty(encodedInfoField) || encodedInfoField[0] != '_')
+            if (string.IsNullOrEmpty(encodedInfoField) || (encodedInfoField[0] != '_' && !IsUltimeterDataLogger(encodedInfoField)))
             {
                 return null;
             }
@@ -135,10 +164,42 @@ namespace AprsSharp.AprsParser
             {
                 return null;
             }
+            catch (FormatException)
+            {
+                return null;
+            }
         }
 
         /// <inheritdoc/>
         public override string Encode() => throw new NotSupportedException("PositionlessWeatherInfo encoding not yet supported");
+
+        /// <summary>
+        /// Determines whether an info field is a Peet Bros Ultimeter "$ULTW" data logger report.
+        /// </summary>
+        /// <param name="encodedInfoField">The encoded info field.</param>
+        /// <returns>True if the info field starts with "$ULTW".</returns>
+        internal static bool IsUltimeterDataLogger(string? encodedInfoField) =>
+            encodedInfoField != null && encodedInfoField.StartsWith(UltimeterPrefix, StringComparison.Ordinal);
+
+        private static int? UltimeterField(string fields, int index, bool signed = false)
+        {
+            int offset = index * 4;
+            if (offset + 4 > fields.Length)
+            {
+                return null;
+            }
+
+            var hex = fields.Substring(offset, 4);
+            if (!int.TryParse(hex, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out int value))
+            {
+                return null;
+            }
+
+            return signed ? (short)value : value;
+        }
+
+        private static int? Scale(int? value, double factor) =>
+            value.HasValue ? (int)Math.Round(value.Value * factor, MidpointRounding.AwayFromZero) : null;
 
         private static int? GetMeasurement(string data, char key, int length)
         {

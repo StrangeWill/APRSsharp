@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using System.Collections.Generic;
@@ -199,6 +199,10 @@ namespace AprsSharp.AprsParser
             {
                 return null;
             }
+            catch (FormatException)
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -211,7 +215,9 @@ namespace AprsSharp.AprsParser
         {
             // Regex below looks for the measurement key followed by either `length` numbers
             // or a negative number of `length - 1` digits (to allow for the negative sign)
-            var match = Regex.Match(base.Comment, $"{measurementKey}(([0-9]{{{length}}})|(-[0-9]{{{length - 1}}}))");
+            // A weather-symbol position with no weather data at all (e.g. "!4903.50N/07201.75W_")
+            // has a null comment; treat it as a weather report with every measurement absent.
+            var match = Regex.Match(base.Comment ?? string.Empty, $"{measurementKey}(([0-9]{{{length}}})|(-[0-9]{{{length - 1}}}))");
             return match.Success ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : null;
         }
 

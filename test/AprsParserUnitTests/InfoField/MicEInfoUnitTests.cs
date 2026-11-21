@@ -1,4 +1,4 @@
-namespace AprsSharpUnitTests.AprsParser
+﻿namespace AprsSharpUnitTests.AprsParser
 {
     using System;
     using AprsSharp.AprsParser;
@@ -137,6 +137,36 @@ namespace AprsSharpUnitTests.AprsParser
             Assert.Null(mi.Speed);
             Assert.Null(mi.Course);
             Assert.Null(mi.Status);
+        }
+
+        /// <summary>
+        /// Verifies real-world Mic-E packets whose info fields carry the non-printable bytes
+        /// the Mic-E encoding legitimately uses (0x1C-0x1F and 0x7F, i.e. a value + 28).
+        /// These previously failed the TNC2 text check and decoded as AX.25 garbage.
+        /// </summary>
+        /// <param name="raw">The raw TNC2 packet.</param>
+        /// <param name="sender">The expected sender.</param>
+        /// <param name="latitude">The expected latitude.</param>
+        /// <param name="longitude">The expected longitude.</param>
+        /// <param name="speed">The expected speed in knots.</param>
+        /// <param name="course">The expected course in degrees.</param>
+        /// <param name="symbolCode">The expected symbol code.</param>
+        [Theory]
+        [InlineData("KR4DSW-7>SUQV3Q,KA4J-3*,WE4MB-3*,WIDE2*:`pWRl*\u001c[/BTECH UV-PRO 7.10V\"6m}", "KR4DSW-7", 35.2718, -84.9923, 1, 0, '[')]
+        [InlineData("KG4LKY-5>SWPU0Q,KG4LKY-2*,AC4AG-4*,WE4MB-3*,WIDE3*:'oS\u001cl \u001c_/]PEET BROS ULTIMETER 2100 TM-D710=\r", "KG4LKY-5", 37.0835, -83.9167, 0, 0, '_')]
+        [InlineData("W2JKT-10>SU1X0Y,YORKSC*,KN6RO-13*,WE4MB-3*,WIDE2*:`m<)l!\u007f>/]\"6u}146.610MHz=\r", "W2JKT-10", 35.3015, -81.5355, 0, 199, '>')]
+        public void DecodeMicEPacketWithControlBytes(string raw, string sender, double latitude, double longitude, int speed, int course, char symbolCode)
+        {
+            Packet p = new Packet(raw);
+
+            Assert.Equal(sender, p.Sender);
+            MicEInfo mi = Assert.IsType<MicEInfo>(p.InfoField);
+            Assert.NotNull(mi.Position);
+            Assert.Equal(latitude, mi.Position!.Coordinates.Latitude, 3);
+            Assert.Equal(longitude, mi.Position.Coordinates.Longitude, 3);
+            Assert.Equal(speed, mi.Speed);
+            Assert.Equal(course, mi.Course);
+            Assert.Equal(symbolCode, mi.Position.SymbolCode);
         }
     }
 }

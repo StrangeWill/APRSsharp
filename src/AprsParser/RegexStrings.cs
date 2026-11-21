@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     /// <summary>
     /// Holds strings for regex comparisons for reuse.
@@ -141,7 +141,7 @@ namespace AprsSharp.AprsParser
         ///     Path
         ///     Info field.
         /// </summary>
-        public const string Tnc2Packet = @"^([^>]+)>([^:]+):(.+)$";
+        public const string Tnc2Packet = @"^([^>]+)>([^:]+):(.*?)\n?$";
 
         /// <summary>
         /// Validates that a given string is only alphanumeric characters in a single line.

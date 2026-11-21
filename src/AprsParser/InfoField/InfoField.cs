@@ -150,6 +150,12 @@
                 case PacketType.PeetBrosUIIWeatherStation:
                     return PositionlessWeatherInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField);
 
+                case PacketType.RawGPSData:
+                    // '$' is shared by raw NMEA sentences and the Peet Bros Ultimeter data logger.
+                    return PositionlessWeatherInfo.IsUltimeterDataLogger(encodedInfoField)
+                        ? PositionlessWeatherInfo.TryParse(encodedInfoField) ?? (InfoField)new UnsupportedInfo(encodedInfoField)
+                        : new UnsupportedInfo(encodedInfoField);
+
                 case PacketType.CurrentMicEData:
                 case PacketType.OldMicEData:
                 case PacketType.CurrentMicEDataNotTMD700:

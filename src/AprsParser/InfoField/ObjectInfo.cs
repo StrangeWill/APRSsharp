@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using AprsSharp.AprsParser.Extensions;
@@ -103,6 +103,10 @@ namespace AprsSharp.AprsParser
                 return new ObjectInfo(encodedInfoField);
             }
             catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (FormatException)
             {
                 return null;
             }

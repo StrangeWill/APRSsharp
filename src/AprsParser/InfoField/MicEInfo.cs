@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using GeoCoordinatePortable;
@@ -104,6 +104,10 @@ namespace AprsSharp.AprsParser
                 return new MicEInfo(encodedInfoField, destination);
             }
             catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (FormatException)
             {
                 return null;
             }

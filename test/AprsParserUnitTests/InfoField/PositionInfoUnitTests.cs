@@ -1,4 +1,4 @@
-namespace AprsSharpUnitTests.AprsParser
+﻿namespace AprsSharpUnitTests.AprsParser
 {
     using System;
     using AprsSharp.AprsParser;
@@ -329,6 +329,19 @@ namespace AprsSharpUnitTests.AprsParser
             Assert.Equal(expectedPacketType, pi.Type);
 
             Assert.Equal(expectedEncoding, pi.Encode());
+        }
+
+        /// <summary>
+        /// Verifies a position whose coordinate digits are corrupted (e.g. "3449.4SN") is
+        /// rejected as unparseable rather than throwing a <see cref="FormatException"/>.
+        /// </summary>
+        [Fact]
+        public void CorruptCoordinateDigitsAreUnsupported()
+        {
+            string infoField = "@161728z3449.4SN/08459.08W_066/003g004t043r000p00<P000h83b10306WX3in1+ Davis Vantage Vuf";
+
+            Assert.Null(PositionInfo.TryParse(infoField));
+            Assert.IsType<UnsupportedInfo>(InfoField.FromString(infoField));
         }
     }
 }

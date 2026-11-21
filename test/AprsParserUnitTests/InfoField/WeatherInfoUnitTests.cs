@@ -1,4 +1,4 @@
-namespace AprsSharpUnitTests.AprsParser
+﻿namespace AprsSharpUnitTests.AprsParser
 {
     using System;
     using System.Collections.Generic;
@@ -293,6 +293,29 @@ namespace AprsSharpUnitTests.AprsParser
 
             Assert.Equal(encodedPacket, p.EncodeTnc2());
             Assert.Equal(encodedPacket, packetToEncode.EncodeTnc2());
+        }
+
+        /// <summary>
+        /// Verifies a weather-symbol position with no weather data at all decodes as a
+        /// <see cref="WeatherInfo"/> with every measurement absent, rather than being
+        /// discarded as unsupported (losing the position).
+        /// </summary>
+        /// <param name="encodedInfoField">The encoded info field.</param>
+        /// <param name="latitude">The expected latitude.</param>
+        /// <param name="longitude">The expected longitude.</param>
+        [Theory]
+        [InlineData("!3329.48N/07919.67W_", 33.4913, -79.3278)]
+        [InlineData("=3545.46N/08356.92W_", 35.7577, -83.9487)]
+        [InlineData("@082528h3510.56N/08506.20W_", 35.176, -85.1033)]
+        public void DecodeWeatherSymbolWithoutWeatherData(string encodedInfoField, double latitude, double longitude)
+        {
+            WeatherInfo wi = Assert.IsType<WeatherInfo>(InfoField.FromString(encodedInfoField));
+
+            Assert.Equal(latitude, wi.Position.Coordinates.Latitude, 4);
+            Assert.Equal(longitude, wi.Position.Coordinates.Longitude, 4);
+            Assert.Null(wi.Temperature);
+            Assert.Null(wi.WindSpeed);
+            Assert.Null(wi.Humidity);
         }
 
         /// <summary>

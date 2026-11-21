@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using System.Globalization;
@@ -104,6 +104,10 @@ namespace AprsSharp.AprsParser
                 return new TelemetryInfo(encodedInfoField);
             }
             catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (FormatException)
             {
                 return null;
             }
