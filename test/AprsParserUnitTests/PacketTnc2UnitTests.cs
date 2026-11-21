@@ -54,11 +54,12 @@ public class PacketTnc2UnitTests
 
     /// <summary>
     /// Verifies a buffer that is neither TNC2 nor long enough to be AX.25 throws an
-    /// <see cref="ArgumentException"/> rather than an index-out-of-range error.
+    /// <see cref="ArgumentOutOfRangeException"/> with a descriptive message rather than
+    /// an unhelpful enumeration/index error.
     /// </summary>
     [Fact]
-    public void TruncatedNonTextFrameThrowsArgumentException()
+    public void TruncatedNonTextFrameThrowsArgumentOutOfRangeException()
     {
-        Assert.Throws<ArgumentException>(() => new Packet(")mg\u00117,-4>D%Y\f^f-10:\f,??"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Packet(")mg\u00117,-4>D%Y\f^f-10:\f,??"));
     }
 }

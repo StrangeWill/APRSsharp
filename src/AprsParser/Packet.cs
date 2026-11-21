@@ -256,9 +256,9 @@
             // Each AX.25 address is 7 bytes; a frame too short to hold this one is malformed.
             if (encodedPacket.Count() < callsignStart + 7)
             {
-                throw new ArgumentException(
-                    $"Encoded packet is too short to be a TNC2 or AX.25 packet (no address {callsignNumber}).",
-                    nameof(encodedPacket));
+                throw new ArgumentOutOfRangeException(
+                    nameof(encodedPacket),
+                    $"Encoded packet is too short to be a TNC2 or AX.25 packet (no address {callsignNumber}).");
             }
 
             var raw = encodedPacket.Skip(callsignStart).Take(6);
