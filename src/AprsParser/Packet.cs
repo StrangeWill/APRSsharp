@@ -26,21 +26,37 @@
 
             ReceivedTime = DateTime.UtcNow;
 
-            // Attempt to decode TNC2 format
-            Match match = Regex.Match(Encoding.ASCII.GetString(encodedPacket), RegexStrings.Tnc2Packet);
-            if (match.Success)
+            // Attempt to decode TNC2 format.
+            // Only run the TNC2 text regex when the header looks textual. A raw AX.25 frame
+            // is not text: its address fields are each callsign char left-shifted by one bit
+            // (so letters become bytes >= 0x80) and it carries control/PID bytes (0x03, 0xF0).
+            // Without this guard, an AX.25 frame whose info field contains a '>' (e.g. every
+            // third-party packet, "}SRC>PATH:...") false-matches the TNC2 regex and Sender is
+            // decoded as binary address garbage instead of the real callsign.
+            // Only the header is checked: the info field of a valid TNC2 packet legitimately
+            // carries non-printable bytes (Mic-E uses 0x1C-0x1F and 0x7F for position/speed).
+            if (HasTextualTnc2Header(encodedPacket))
             {
-                match.AssertSuccess("Full TNC2 Packet", nameof(encodedPacket));
-                Sender = match.Groups[1].Value;
-                Path = match.Groups[2].Value.Split(',');
-                InfoField = InfoField.FromString(match.Groups[3].Value);
-                return;
+                Match match = Regex.Match(Encoding.ASCII.GetString(encodedPacket), RegexStrings.Tnc2Packet, RegexOptions.Singleline);
+                if (match.Success)
+                {
+                    match.AssertSuccess("Full TNC2 Packet", nameof(encodedPacket));
+                    Sender = match.Groups[1].Value;
+                    Path = match.Groups[2].Value.Split(',').ToList();
+                    Destination = Path.Count > 0 ? Path[0] : null;
+                    InfoField = InfoField.FromString(match.Groups[3].Value, Destination);
+                    return;
+                }
             }
 
             // Next attempt to decode AX.25 format
             Destination = GetCallsignFromAx25(encodedPacket, 0, out _);
             Sender = GetCallsignFromAx25(encodedPacket, 1, out bool isFinalAddress);
             Path = new List<string>();
+            if (Destination != null)
+            {
+                Path.Add(Destination);
+            }
 
             for (var i = 2; !isFinalAddress && i < 10; ++i)
             {
@@ -48,8 +64,8 @@
                 Path.Add(pathEntry);
             }
 
-            var infoBytes = encodedPacket.Skip(((Path.Count + 2) * 7) + 2);
-            InfoField = InfoField.FromString(Encoding.ASCII.GetString(infoBytes.ToArray()));
+            var infoBytes = encodedPacket.Skip(((Path.Count + 1) * 7) + 2);
+            InfoField = InfoField.FromString(Encoding.ASCII.GetString(infoBytes.ToArray()), Destination);
         }
 
         /// <summary>
@@ -154,10 +170,11 @@
 
             // Length
             // Sender address (7) + Destination address (7)
-            // + Path (7*N)
+            // + Via-path entries (7*N, excluding Path[0] which is the destination)
             // + Control Field (1) + Protocol ID (1)
             // + Info field (N)
-            var numBytes = 16 + (Path.Count * 7) + encodedInfoField.Length;
+            var viaCount = Math.Max(0, Path.Count - 1);
+            var numBytes = 16 + (viaCount * 7) + encodedInfoField.Length;
             var encodedBytes = new byte[numBytes];
 
             var offset = 0;
@@ -165,15 +182,16 @@
             EncodeCallsignBytes(Destination).CopyTo(encodedBytes, offset);
             offset += 7;
 
-            EncodeCallsignBytes(Sender, Path.Count == 0).CopyTo(encodedBytes, offset);
+            EncodeCallsignBytes(Sender, viaCount == 0).CopyTo(encodedBytes, offset);
             offset += 7;
 
-            if (Path.Count > 8)
+            if (viaCount > 8)
             {
                 throw new ArgumentException("Path must not have more than 8 entries");
             }
 
-            for (var i = 0; i < Path.Count; ++i)
+            // Skip Path[0] (destination) — already encoded above
+            for (var i = 1; i < Path.Count; ++i)
             {
                 EncodeCallsignBytes(Path[i], i == (Path.Count - 1)).CopyTo(encodedBytes, offset);
                 offset += 7;
@@ -191,6 +209,40 @@
         }
 
         /// <summary>
+        /// Determines whether a buffer is plausibly a textual (TNC2) packet rather than a
+        /// raw AX.25 byte frame, by inspecting only the header (everything before the first
+        /// ':'). A TNC2 header is printable, space-free ASCII containing a '>' separator.
+        /// A raw AX.25 frame's address fields are shifted bytes (letters become >= 0x80) and
+        /// are followed by the 0x03/0xF0 control and PID bytes, so it is rejected here.
+        /// The info field is deliberately not inspected, as formats such as Mic-E use
+        /// non-printable bytes as part of their encoding.
+        /// </summary>
+        /// <param name="encodedPacket">The bytes of the encoded packet.</param>
+        /// <returns>True if the header looks like TNC2 text, otherwise false.</returns>
+        private static bool HasTextualTnc2Header(byte[] encodedPacket)
+        {
+            int colonIndex = Array.IndexOf(encodedPacket, (byte)':');
+            if (colonIndex <= 0)
+            {
+                return false;
+            }
+
+            bool sawSeparator = false;
+            for (int i = 0; i < colonIndex; ++i)
+            {
+                byte b = encodedPacket[i];
+                if (b <= 0x20 || b >= 0x7F)
+                {
+                    return false;
+                }
+
+                sawSeparator |= b == (byte)'>';
+            }
+
+            return sawSeparator;
+        }
+
+        /// <summary>
         /// Attempts to get a callsign from an encoded AX.25 packet.
         /// </summary>
         /// <param name="encodedPacket">The bytes of the encoded packet.</param>
@@ -200,6 +252,14 @@
         private static string GetCallsignFromAx25(IEnumerable<byte> encodedPacket, int callsignNumber, out bool isFinal)
         {
             int callsignStart = callsignNumber * 7;
+
+            // Each AX.25 address is 7 bytes; a frame too short to hold this one is malformed.
+            if (encodedPacket.Count() < callsignStart + 7)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(encodedPacket),
+                    $"Encoded packet is too short to be a TNC2 or AX.25 packet (no address {callsignNumber}).");
+            }
 
             var raw = encodedPacket.Skip(callsignStart).Take(6);
             var shifted = raw.Select(r => (byte)(r >> 1)).ToArray();

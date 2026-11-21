@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     /// <summary>
     /// Holds strings for regex comparisons for reuse.
@@ -87,6 +87,21 @@ namespace AprsSharp.AprsParser
         public const string PositionWithoutTimestamp = $@"^[!=]({PositionLatLongWithSymbols})(.+)?$";
 
         /// <summary>
+        /// Matches a PositionWithoutTimestamp info field using compressed position format.
+        /// Nine matches:
+        ///     Full
+        ///     Full compressed position
+        ///     Symbol table ID
+        ///     Compressed latitude
+        ///     Compressed longitude
+        ///     Symbol code
+        ///     Compressed course/speed, radio range, or altitude
+        ///     Compressed data type
+        ///     Optional comment.
+        /// </summary>
+        public const string PositionWithoutTimestampCompressed = $@"^[!=]({CompressedPosition})(.+)?$";
+
+        /// <summary>
         /// Matches a PositionWithTimestamp info field.
         /// 9 mathces:
         ///     Full
@@ -102,6 +117,23 @@ namespace AprsSharp.AprsParser
         public const string PositionWithTimestamp = $@"^([/@])([0-9]{{6}}[/zh0-9])({PositionLatLongWithSymbols})(.+)?$";
 
         /// <summary>
+        /// Matches a PositionWithTimestamp info field using compressed position format.
+        /// Eleven matches:
+        ///     Full
+        ///     Packet type symbol (/ or @)
+        ///     Timestamp
+        ///     Full compressed position
+        ///     Symbol table ID
+        ///     Compressed latitude
+        ///     Compressed longitude
+        ///     Symbol code
+        ///     Compressed course/speed, radio range, or altitude
+        ///     Compressed data type
+        ///     Optional comment.
+        /// </summary>
+        public const string PositionWithTimestampCompressed = $@"^([/@])([0-9]{{6}}[/zh0-9])({CompressedPosition})(.+)?$";
+
+        /// <summary>
         /// Matches a full TNC2-encoded packet.
         /// 4 matches:
         ///     Full
@@ -109,7 +141,7 @@ namespace AprsSharp.AprsParser
         ///     Path
         ///     Info field.
         /// </summary>
-        public const string Tnc2Packet = @"^([^>]+)>([^:]+):(.+)$";
+        public const string Tnc2Packet = @"^([^>]+)>([^:]+):(.*?)\n?$";
 
         /// <summary>
         /// Validates that a given string is only alphanumeric characters in a single line.
@@ -126,6 +158,12 @@ namespace AprsSharp.AprsParser
         ///     MessageId (excludes `{`).
         /// </summary>
         public const string MessageWithId = @"^:(.{9}):([^:~{]+)?({([a-zA-Z0-9]{1,5}))?$";
+
+        /// <summary>
+        /// Lenient version of <see cref="MessageWithId"/> that allows addressees of 1-9 characters
+        /// and content containing colons or tildes.
+        /// </summary>
+        public const string MessageLenient = @"^:(.{1,9}):(.+?)(\{([a-zA-Z0-9]{1,5}))?$";
 
         /// <summary>
         /// Matches a callsign with optional SSID

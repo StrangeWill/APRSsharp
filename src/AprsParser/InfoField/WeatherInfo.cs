@@ -1,4 +1,4 @@
-namespace AprsSharp.AprsParser
+﻿namespace AprsSharp.AprsParser
 {
     using System;
     using System.Collections.Generic;
@@ -179,6 +179,33 @@ namespace AprsSharp.AprsParser
         }
 
         /// <summary>
+        /// Attempts to parse a <see cref="PositionInfo"/> as a <see cref="WeatherInfo"/>.
+        /// Returns null if the position does not have a weather symbol or parsing fails.
+        /// </summary>
+        /// <param name="positionInfo">A <see cref="PositionInfo"/> to convert.</param>
+        /// <returns>A <see cref="WeatherInfo"/> if parsing succeeds; otherwise, null.</returns>
+        public static WeatherInfo? TryParse(PositionInfo positionInfo)
+        {
+            if (positionInfo == null || !positionInfo.Position.IsWeatherSymbol())
+            {
+                return null;
+            }
+
+            try
+            {
+                return new WeatherInfo(positionInfo);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (FormatException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Retrieves an APRS weather measurement from the comment string.
         /// </summary>
         /// <param name="measurementKey">The weather element to fetch, as defined by the key the ARPS specification.</param>
@@ -188,7 +215,9 @@ namespace AprsSharp.AprsParser
         {
             // Regex below looks for the measurement key followed by either `length` numbers
             // or a negative number of `length - 1` digits (to allow for the negative sign)
-            var match = Regex.Match(base.Comment, $"{measurementKey}(([0-9]{{{length}}})|(-[0-9]{{{length - 1}}}))");
+            // A weather-symbol position with no weather data at all (e.g. "!4903.50N/07201.75W_")
+            // has a null comment; treat it as a weather report with every measurement absent.
+            var match = Regex.Match(base.Comment ?? string.Empty, $"{measurementKey}(([0-9]{{{length}}})|(-[0-9]{{{length - 1}}}))");
             return match.Success ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : null;
         }
 

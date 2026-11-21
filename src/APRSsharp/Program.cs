@@ -148,7 +148,7 @@
             rootCommand.Description = $@"AprsSharp Console App
                 Version: {Utilities.GetAssemblyVersion()}
                 GitHub: https://github.com/CBielstein/APRSsharp
-                Author: Cameron Bielstein";
+                Authors: Cameron Bielstein, William Roush";
 
             // The parameters of the handler method are matched according to the names of the options
             rootCommand.Handler = CommandHandler
